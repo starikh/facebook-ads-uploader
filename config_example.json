@@ -1,0 +1,14 @@
+{
+    "access_token": "YOUR_ACCESS_TOKEN",
+    "business_name": "My Business",
+    "ad_accounts": [
+        {
+            "id": "act_1234567890",
+            "comment": "Client A"
+        },
+        {
+            "id": "act_0987654321",
+            "comment": "Client B"
+        }
+    ]
+}
