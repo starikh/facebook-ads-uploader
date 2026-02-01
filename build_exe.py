@@ -15,7 +15,7 @@ print(f"Found Facebook Certificate: {crt_file}")
 # PyInstaller arguments
 args = [
     'gui.py',
-    '--name=FBAdsUploader_fixed',
+    '--name=FBAdsUploader',
     '--noconfirm',
     '--onefile',
     '--windowed',

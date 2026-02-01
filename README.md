@@ -1,90 +1,54 @@
-# Facebook Ads Video Uploader
+# Facebook Ads Uploader (GUI)
 
-A Python script to batch upload video creatives to Facebook Ad Accounts using the Facebook Marketing API.
+A modern desktop application to batch upload video creatives to Facebook Ads Manager.
 
 ## Features
 
-- **Batch Upload**: Upload multiple videos at once from a selected folder.
-- **Multiple Accounts**: Configure and choose from multiple Ad Accounts.
-- **Interactive CLI**: Simple command-line interface for selecting accounts.
-- **GUI Folder Selection**: Uses a graphical dialog to easily pick the source folder.
-- **Supported Formats**: `.mp4`, `.mov`, `.avi`, `.mkv`.
-
-## Prerequisites
-
-- Python 3.6+
-- A [Facebook App](https://developers.facebook.com/) with the `ads_management` permission.
-- An Access Token for the Facebook App.
+- **Modern GUI**: User-friendly interface built with CustomTkinter.
+- **Multi-Organization Support**: Manage ad accounts for multiple different businesses or clients.
+- **Secure Token Storage**: Access Tokens are stored securely in your OS Credential Manager (Keyring), not in plain text files.
+- **Per-Organization Tokens**: Each organization carries its own specific access token.
+- **Batch Upload**: Upload multiple video files at once with progress tracking.
+- **Standalone Executable**: No Python installation required if using the `.exe`.
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/starikh/facebook-ads-uploader.git
-   cd facebook-ads-uploader
-   ```
+### Using the Executable
+1. Go to the `dist` folder.
+2. Run `FBAdsUploader_v3.exe`.
 
-2. Install the required dependencies:
+### Running from Source
+1. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-
-## Configuration
-
-The script uses a `config.json` file to store your credentials and account information.
-
-1. Ensure `config.json` is present in the root directory.
-2. Edit `config.json` with your details:
-
-```json
-{
-    "access_token": "YOUR_ACCESS_TOKEN", 
-    "business_name": "My Business",
-    "ad_accounts": [
-        {
-            "id": "act_1234567890",
-            "comment": "Client A"
-        },
-        {
-            "id": "act_0987654321",
-            "comment": "Client B"
-        }
-    ]
-}
-```
-
-- **access_token**: Your Facebook Graph API access token (must have `ads_management` permission).
-- **business_name**: A label for your business (displayed when the script starts).
-- **ad_accounts**: A list of ad accounts you want to upload to.
-  - **id**: The Ad Account ID (must start with `act_`). (When you choosing AD Account you see this ID, but without act_ prefix)
-  - **comment**: A friendly name or note to help you identify the account.
-
-> **Note**: You can add as many ad account entries as you need in the `ad_accounts` list by adding more
-```json
-        {
-            "id": "act_1234567890",
-            "comment": "Client A"
-        }
-```
-
-
-## Usage
-
-1. Run the script:
+2. Run the application:
    ```bash
-   python upload_video.py
+   python gui.py
    ```
 
-2. **Select Ad Account**: The script will list the accounts from your config. Enter the number corresponding to the desired account.
+## Usage Guide
 
-3. **Select Video Folder**: A window will pop up asking you to select the folder containing your video files.
-   - The script scans for `.mp4`, `.mov`, `.avi`, and `.mkv` files.
+### 1. Initial Setup (Settings Tab)
+The first time you run the app, you need to configure your organizations.
 
-4. **Confirm Upload**: The script will show the selected account and list of videos to be uploaded. Type `y` to proceed.
+1.  **Add Organization**:
+    -   Click "Add Org" to create a profile (e.g., "Client A", "My Business").
+2.  **Add Access Token**:
+    -   Select your new Organization from the dropdown.
+    -   Enter your **Facebook Graph API Access Token** (must have `ads_management` permission).
+    -   Click "Save Token". *It is stored securely.*
+3.  **Add Ad Accounts**:
+    -   With the Organization selected, enter an Ad Account ID (beginning with `act_`) and a comment.
+    -   Click "Add/Update".
 
-5. **Wait for Completion**: The script will upload each video and print the result (Success/Failure).
+### 2. Uploading Videos (Upload Tab)
+1.  **Select Organization**: Choose the context for your upload.
+2.  **Select Ad Account**: Pick the target ad account from the dropdown.
+3.  **Select Folder**: Choose the folder containing your video files (`.mp4`, `.mov`, `.avi`, `.mkv`).
+4.  **Upload**: Click "UPLOAD ALL" to start the process.
 
-## Troubleshooting
+## Configuration Data
 
-- **Token Expired**: If you see authentication errors, generate a new access token and update `config.json`.
-- **Permission Error**: Ensure your System User or User access token has the `ads_management` permission and access to the target Ad Accounts.
+-   Non-sensitive data (Organization names, Ad Account IDs) is stored in `config.json`.
+-   **Sensitive Data** (Access Tokens) is stored in the system Keyring.

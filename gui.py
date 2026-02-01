@@ -13,10 +13,10 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Facebook Ads Uploader")
-        self.geometry("800x600")
+        self.geometry("900x700")
 
         self.config_manager = ConfigManager()
-        self.uploader = None
+        self.uploader = None # Uploader is now created per-upload
         self.upload_thread = None
         self.selected_folder = ""
         self.video_files = []
@@ -28,48 +28,45 @@ class App(ctk.CTk):
         self.tab_upload = self.tabview.add("Upload")
         self.tab_settings = self.tabview.add("Settings")
 
-        # --- Settings Tab ---
-        self.setup_settings_tab()
-
         # --- Upload Tab ---
         self.setup_upload_tab()
 
-        # Initialize Uploader with token if available
-        self.refresh_uploader()
-
-    def refresh_uploader(self):
-        token = self.config_manager.get_token()
-        self.uploader = VideoUploader(token)
+        # --- Settings Tab ---
+        self.setup_settings_tab()
 
     # --- Settings Tab Logic ---
     def setup_settings_tab(self):
-        # Token
-        self.lbl_token = ctk.CTkLabel(self.tab_settings, text="Access Token (Secure):", font=("Arial", 14, "bold"))
-        self.lbl_token.pack(pady=(10, 5), anchor="w", padx=20)
+        # 1. Organization Management (Top)
+        self.lbl_orgs = ctk.CTkLabel(self.tab_settings, text="Organizations:", font=("Arial", 14, "bold"))
+        self.lbl_orgs.pack(pady=(20, 5), anchor="w", padx=20)
 
-        self.entry_token = ctk.CTkEntry(self.tab_settings, width=400, show="*")
-        self.entry_token.pack(pady=5, padx=20, anchor="w")
+        self.frame_org_controls = ctk.CTkFrame(self.tab_settings)
+        self.frame_org_controls.pack(pady=5, padx=20, fill="x", anchor="w")
+
+        self.option_settings_org = ctk.CTkOptionMenu(self.frame_org_controls, command=self.on_settings_org_change)
+        self.option_settings_org.pack(side="left", padx=(0, 10))
+
+        self.btn_add_org = ctk.CTkButton(self.frame_org_controls, text="Add Org", width=100, command=self.add_org_dialog)
+        self.btn_add_org.pack(side="left", padx=5)
+
+        self.btn_del_org = ctk.CTkButton(self.frame_org_controls, text="Delete Org", width=100, fg_color="red", command=self.delete_current_org)
+        self.btn_del_org.pack(side="left", padx=5)
+
+        # 2. Token (Dependent on Selected Org)
+        self.lbl_token = ctk.CTkLabel(self.tab_settings, text="Access Token (for Selected Org):", font=("Arial", 14, "bold"))
+        self.lbl_token.pack(pady=(20, 5), anchor="w", padx=20)
+
+        self.frame_token = ctk.CTkFrame(self.tab_settings)
+        self.frame_token.pack(pady=5, padx=20, fill="x", anchor="w")
+
+        self.entry_token = ctk.CTkEntry(self.frame_token, width=400, show="*")
+        self.entry_token.pack(side="left", padx=(0, 10))
         
-        # Pre-fill placeholder if token exists (don't show actual token)
-        if self.config_manager.get_token():
-            self.entry_token.insert(0, "********")
+        self.btn_save_token = ctk.CTkButton(self.frame_token, text="Save Token", command=self.save_token)
+        self.btn_save_token.pack(side="left")
 
-        self.btn_save_token = ctk.CTkButton(self.tab_settings, text="Save Token", command=self.save_token)
-        self.btn_save_token.pack(pady=5, padx=20, anchor="w")
-
-        # Business Name
-        self.lbl_biz = ctk.CTkLabel(self.tab_settings, text="Business Name:", font=("Arial", 14, "bold"))
-        self.lbl_biz.pack(pady=(20, 5), anchor="w", padx=20)
-
-        self.entry_biz = ctk.CTkEntry(self.tab_settings, width=400)
-        self.entry_biz.insert(0, self.config_manager.get_business_name())
-        self.entry_biz.pack(pady=5, padx=20, anchor="w")
-
-        self.btn_save_biz = ctk.CTkButton(self.tab_settings, text="Save Business Name", command=self.save_biz)
-        self.btn_save_biz.pack(pady=5, padx=20, anchor="w")
-
-        # Ad Accounts Header
-        self.lbl_accs = ctk.CTkLabel(self.tab_settings, text="Ad Accounts:", font=("Arial", 14, "bold"))
+        # 3. Ad Accounts for Selected Org
+        self.lbl_accs = ctk.CTkLabel(self.tab_settings, text="Ad Accounts (for Selected Org):", font=("Arial", 14, "bold"))
         self.lbl_accs.pack(pady=(20, 5), anchor="w", padx=20)
 
         # Add Account Frame
@@ -77,7 +74,7 @@ class App(ctk.CTk):
         self.frame_add_acc.pack(pady=5, padx=20, fill="x", anchor="w")
 
         self.entry_acc_id = ctk.CTkEntry(self.frame_add_acc, placeholder_text="Account ID (act_...)", width=200)
-        self.entry_acc_id.pack(side="left", padx=5)
+        self.entry_acc_id.pack(side="left", padx=(0, 5))
         
         self.entry_acc_comment = ctk.CTkEntry(self.frame_add_acc, placeholder_text="Comment (e.g. Client A)", width=200)
         self.entry_acc_comment.pack(side="left", padx=5)
@@ -87,44 +84,96 @@ class App(ctk.CTk):
 
         # Account List
         self.scroll_accs = ctk.CTkScrollableFrame(self.tab_settings, height=200)
-        self.scroll_accs.pack(pady=10, padx=20, fill="x")
+        self.scroll_accs.pack(pady=10, padx=20, fill="x", expand=True)
+
+        self.refresh_org_list_settings()
+
+    def refresh_org_list_settings(self):
+        orgs = self.config_manager.get_organization_names()
+        if not orgs:
+            orgs = ["Default"]
+            self.config_manager.add_organization("Default")
         
-        self.refresh_account_list()
+        self.option_settings_org.configure(values=orgs)
+        
+        # Keep selection or default to first
+        current = self.option_settings_org.get()
+        if current not in orgs:
+            self.option_settings_org.set(orgs[0])
+            current = orgs[0]
+        
+        self.on_settings_org_change(current)
+            
+        # Refresh upload tab too if needed
+        self.refresh_upload_orgs()
+
+    def on_settings_org_change(self, choice):
+        self.refresh_account_list_settings(choice)
+        self.refresh_token_field(choice)
+
+    def refresh_token_field(self, org_name):
+        self.entry_token.delete(0, 'end')
+        token = self.config_manager.get_token(org_name)
+        if token:
+            self.entry_token.insert(0, "********")
 
     def save_token(self):
+        org_name = self.option_settings_org.get()
         token = self.entry_token.get()
+        
+        if not org_name: return
+
         if token != "********":
-            self.config_manager.set_token(token)
+            self.config_manager.set_token(org_name, token)
             self.entry_token.delete(0, 'end')
             self.entry_token.insert(0, "********")
-            self.refresh_uploader()
-            tk.messagebox.showinfo("Success", "Token saved securely.")
+            tk.messagebox.showinfo("Success", f"Token saved securely for '{org_name}'.")
 
-    def save_biz(self):
-        self.config_manager.set_business_name(self.entry_biz.get())
-        tk.messagebox.showinfo("Success", "Business name saved.")
+    def add_org_dialog(self):
+        dialog = ctk.CTkInputDialog(text="Enter Organization Name:", title="Add Organization")
+        name = dialog.get_input()
+        if name:
+            self.config_manager.add_organization(name)
+            self.refresh_org_list_settings()
+            self.option_settings_org.set(name)
+            self.on_settings_org_change(name)
+
+    def delete_current_org(self):
+        name = self.option_settings_org.get()
+        if not name: return
+        if tk.messagebox.askyesno("Confirm Delete", f"Delete organization '{name}', its accounts, and its token?"):
+            self.config_manager.remove_organization(name)
+            self.refresh_org_list_settings()
 
     def add_account(self):
+        org_name = self.option_settings_org.get()
+        if not org_name: return
+
         acc_id = self.entry_acc_id.get().strip()
         comment = self.entry_acc_comment.get().strip()
         if acc_id:
-            self.config_manager.add_ad_account(acc_id, comment)
-            self.refresh_account_list()
-            self.refresh_upload_tab_accounts()
+            self.config_manager.add_ad_account(org_name, acc_id, comment)
+            self.refresh_account_list_settings(org_name)
+            # Refresh upload tab if same org selected
+            if self.option_upload_org.get() == org_name:
+                self.on_upload_org_change(org_name)
+            
             self.entry_acc_id.delete(0, 'end')
             self.entry_acc_comment.delete(0, 'end')
 
     def remove_account(self, acc_id):
-        self.config_manager.remove_ad_account(acc_id)
-        self.refresh_account_list()
-        self.refresh_upload_tab_accounts()
+        org_name = self.option_settings_org.get()
+        self.config_manager.remove_ad_account(org_name, acc_id)
+        self.refresh_account_list_settings(org_name)
+        if self.option_upload_org.get() == org_name:
+            self.on_upload_org_change(org_name)
 
-    def refresh_account_list(self):
+    def refresh_account_list_settings(self, org_name):
         # Clear existing
         for widget in self.scroll_accs.winfo_children():
             widget.destroy()
 
-        accounts = self.config_manager.get_ad_accounts()
+        accounts = self.config_manager.get_ad_accounts(org_name)
         for acc in accounts:
             row = ctk.CTkFrame(self.scroll_accs)
             row.pack(fill="x", pady=2)
@@ -135,13 +184,21 @@ class App(ctk.CTk):
 
     # --- Upload Tab Logic ---
     def setup_upload_tab(self):
+        # Organization Selection
+        self.lbl_u_org = ctk.CTkLabel(self.tab_upload, text="Select Organization:")
+        self.lbl_u_org.pack(pady=(10, 5), padx=20, anchor="w")
+
+        self.option_upload_org = ctk.CTkOptionMenu(self.tab_upload, command=self.on_upload_org_change)
+        self.option_upload_org.pack(pady=5, padx=20, anchor="w")
+
         # Account Selection
         self.lbl_u_acc = ctk.CTkLabel(self.tab_upload, text="Select Ad Account:")
         self.lbl_u_acc.pack(pady=(10, 5), padx=20, anchor="w")
 
         self.option_account = ctk.CTkOptionMenu(self.tab_upload, values=[])
         self.option_account.pack(pady=5, padx=20, anchor="w")
-        self.refresh_upload_tab_accounts()
+        
+        self.refresh_upload_orgs()
 
         # Folder Selection
         self.frame_folder = ctk.CTkFrame(self.tab_upload)
@@ -182,8 +239,21 @@ class App(ctk.CTk):
         self.txt_log = ctk.CTkTextbox(self.tab_upload, height=100)
         self.txt_log.pack(pady=10, padx=20, fill="both", expand=True)
 
-    def refresh_upload_tab_accounts(self):
-        accounts = self.config_manager.get_ad_accounts()
+    def refresh_upload_orgs(self):
+        orgs = self.config_manager.get_organization_names()
+        if not orgs:
+            orgs = ["No Orgs"]
+        self.option_upload_org.configure(values=orgs)
+        self.option_upload_org.set(orgs[0])
+        self.on_upload_org_change(orgs[0])
+
+    def on_upload_org_change(self, choice):
+        if choice == "No Orgs":
+            self.option_account.configure(values=["No Accounts"])
+            self.option_account.set("No Accounts")
+            return
+            
+        accounts = self.config_manager.get_ad_accounts(choice)
         values = [f"{acc['id']} ({acc.get('comment','')})" for acc in accounts]
         if not values:
             values = ["No Accounts Configured"]
@@ -198,11 +268,20 @@ class App(ctk.CTk):
             self.refresh_file_list()
 
     def refresh_file_list(self):
+        # We need an instance of VideoUploader just to check files info? 
+        # Actually existing VideoUploader logic for get_video_files is static-ish, 
+        # but let's just make it a static method or create a dummy instance.
+        # But wait, logic is in Uploader class. Uploader needs token.
+        # For file listing, token is NOT needed.
+        # Let's just create a temporary uploader or move get_video_files out.
+        # For minimal refactor, I'll pass None as token.
+        temp_uploader = VideoUploader(None)
+        
         # clear
         for w in self.scroll_files.winfo_children():
             w.destroy()
         
-        self.video_files = self.uploader.get_video_files(self.selected_folder)
+        self.video_files = temp_uploader.get_video_files(self.selected_folder)
         
         for f in self.video_files:
             lbl = ctk.CTkLabel(self.scroll_files, text=f)
@@ -223,17 +302,31 @@ class App(ctk.CTk):
         if not self.video_files:
             return
         
+        org_name = self.option_upload_org.get()
+        if org_name == "No Orgs" or not org_name:
+             tk.messagebox.showerror("Error", "Please select an organization.")
+             return
+
         selection = self.option_account.get()
         if "No Accounts" in selection:
             tk.messagebox.showerror("Error", "Please configure an Ad Account first.")
             return
         
+        # Get Token
+        token = self.config_manager.get_token(org_name)
+        if not token:
+             tk.messagebox.showerror("Error", f"No access token found for Organization '{org_name}'. Please go to Settings and save a token.")
+             return
+
         # Parse account ID from "act_123 (Comment)" -> "act_123"
         acc_id = selection.split(" ")[0]
         
         self.btn_upload.configure(state="disabled")
         self.btn_cancel.configure(state="normal")
         self.progress_bar.set(0)
+        
+        # Create uploader with specific token
+        self.uploader = VideoUploader(token)
         
         self.upload_thread = threading.Thread(target=self.run_upload, args=(acc_id, self.video_files))
         self.upload_thread.start()
