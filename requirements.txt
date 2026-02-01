@@ -1,1 +1,5 @@
 facebook-business
+customtkinter
+keyring
+pillow
+pyinstaller
